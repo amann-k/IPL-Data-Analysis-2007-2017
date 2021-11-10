@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="UTF-8"?><sqlb_project><db path="C:/Users/Dell/IPL Data Analysis (2007-17).db" readonly="0" foreign_keys="1" case_sensitive_like="0" temp_store="0" wal_autocheckpoint="1000" synchronous="2"/><attached/><window><main_tabs open="structure browser pragmas query" current="3"/></window><tab_structure><column_width id="0" width="300"/><column_width id="1" width="0"/><column_width id="2" width="125"/><column_width id="3" width="3662"/><column_width id="4" width="0"/><expanded_item id="0" parent="1"/><expanded_item id="1" parent="1"/><expanded_item id="2" parent="1"/><expanded_item id="3" parent="1"/></tab_structure><tab_browse><current_table name="4,10:maindeliveries"/><default_encoding codec=""/><browse_table_settings/></tab_browse><tab_sql><sql name="Shape_of_data.sql">--no. of rows
+Select count(*) as no_of_rows FROM matches;
+
+--no. of column
+Select count(*) as no_of_columns FROM PRAGMA_table_info('matches');</sql><sql name="Viewing data.sql">--view first 5 rows
+SELECT * FROM matches LIMIT 5;
+
+SELECT * FROM deliveries LIMIT 5;
+
+--view selected columns
+SELECT date, team1, team2, winner FROM matches limit 5;
+
+</sql><sql name="Distinct Values.sql">--How many players have won player of the match award at least once
+SELECT COUNT(DISTINCT(player_of_match)) FROM matches;
+
+--Find season winner for each season (season winner is the winner of the last match of each season)
+SELECT DISTINCT season,winner,date,city,team1,team2,toss_decision,toss_winner,win_by_runs,win_by_wickets FROM matches order by season, date desc ;
+
+
+SELECT DISTINCT season,player_of_match,venue,date FROM matches order by season,date desc;</sql><sql name="Order by.sql">--Get details of top 5 matches which were won by maximum number of runs
+SELECT * FROM matches ;
+
+--Order the rows by city in which the match was played
+SELECT * FROM matches ORDER BY city LIMIT 10;
+
+--venue of 10 most recently played match
+SELECT venue,date FROM matches ORDER BY date DESC LIMIT 10;
+</sql><sql name="Case.sql">
+-- return a column with comment based on runs scored
+select batsman, total_runs, 
+    CASE WHEN total_runs = 4 THEN 'Four' 
+         WHEN total_runs = 6 THEN 'Six' 
+         WHEN total_runs = 1 THEN 'single' 
+         WHEN total_runs = 0 THEN 'duck' 
+     END as howzthat 
+   FROM deliveries;</sql><sql name="Data aggregation.sql">--highest runs by which any team won
+SELECT MAX(win_by_runs) FROM matches;
+
+--extra runs conceded in ipl
+SELECT SUM(extra_runs) FROM deliveries;
+
+--on an avg teams won by how many runs
+SELECT ROUND(AVG(win_by_runs), 2) FROM matches;
+</sql><sql name="Filtering.sql">SELECT SUM(extra_runs) 
+FROM deliveries 
+WHERE bowler = 'SK Warne'; --How many extra runs were conceded in ipl by SK Warne
+
+--How many boundaries (4s or 6s) have been hit in ipl
+SELECT COUNT(total_runs) 
+FROM deliveries 
+WHERE total_runs = 4 OR total_runs = 6;
+
+--How many balls did SK Warne bowl to batsman SR Tendulkar
+SELECT COUNT(*) 
+FROM deliveries 
+WHERE batsman = 'SR Tendulkar' AND bowler = 'SK Warne';
+
+SELECT COUNT(*) FROM matches WHERE month = 4;--How many matches were played in the month of April
+
+--How many matches were played in the March and June
+SELECT COUNT(*) 
+FROM matches 
+WHERE EXTRACT(month FROM date) = 3 or EXTRACT(month FROM date) = 6;
+
+--Total number of wickets taken in ipl (count not null values)
+SELECT COUNT(player_dismissed) AS total_wickets 
+FROM deliveries 
+WHERE player_dismissed IS NOT NULL;
+
+</sql><sql name="Pattern.sql">--How many batsmen have names starting with S
+SELECT COUNT(DISTINCT(batsman)) 
+FROM deliveries 
+WHERE batsman LIKE 'S%';
+
+--How many teams have word royal in it (could be anywhere in the team name, any case)
+SELECT COUNT(DISTINCT(team1)) 
+from matches 
+WHERE LOWER(team1) LIKE '%royal%';
+
+</sql><sql name="Group by fn.sql">--Maximum runs by which any team won a match per season
+SELECT season, MAX(win_by_runs) 
+FROM matches 
+GROUP BY season 
+ORDER BY season;
+
+--Create score card for each match Id
+SELECT matchid, batting_team, batsman, SUM(batsman_runs) 
+FROM deliveries 
+GROUP BY matchid, batting_team, batsman 
+ORDER BY matchid, batting_team;
+
+--Total boundaries hit in ipl by each team
+SELECT batting_team, COUNT(total_runs) as No_of_boundaries 
+FROM deliveries 
+WHERE total_runs = 4 OR total_runs = 6 
+GROUP BY batting_team 
+ORDER BY no_of_boundaries desc;
+
+--Top 10 players with max boundaries (4 or 6)
+SELECT batsman, COUNT(batsman_runs)       
+FROM deliveries                                                                                                                                           
+WHERE batsman_runs = 6 OR batsman_runs = 4                                                                                                                
+GROUP BY batsman                                                                                                                                          
+ORDER BY COUNT(batsman_runs) desc LIMIT 10;
+
+--Top 20 bowlers who conceded highest extra runs
+SELECT bowler, SUM(extra_runs) as total_extra_runs 
+FROM deliveries 
+GROUP BY bowler 
+ORDER BY total_extra_runs DESC LIMIT 20;
+
+--Top 10 wicket takers
+SELECT bowler, COUNT(player_dismissed) as total_wickets                                                                                             
+FROM deliveries                                                                                                                                           
+WHERE player_dismissed IS NOT NULL                                                                                                                        
+GROUP BY bowler                                                                                                                                           
+ORDER BY total_wickets desc LIMIT 10;
+
+--Name and number of wickets by bowlers who have taken more than or equal to 100 wickets in ipl
+SELECT bowler, COUNT(player_dismissed) AS total_wickets 
+FROM deliveries 
+WHERE player_dismissed IS NOT NULL GROUP BY bowler 
+HAVING COUNT(player_dismissed) &gt;=100 
+ORDER BY total_wickets desc;
+
+
+</sql><sql name="window fn.sql">--Top 2 player_of_the_match for each season
+SELECT season, player_of_the_match, count 
+FROM (SELECT row_number() OVER (partition by season) AS rn, * 
+FROM (SELECT season, player_of_the_match,COUNT(player_of_the_match) 
+FROM matches GROUP BY season, player_of_the_match 
+ORDER BY season ASC, count DESC)
+WHERE rn &lt; 3;</sql><sql name="join.sql">--Combine column date from matches with table deliveries to get data by year
+select d.*, m.id, m.date from deliveries d join matches m on m.id = d.matchid limit 2;
+</sql><current_tab id="0"/></tab_sql></sqlb_project>
